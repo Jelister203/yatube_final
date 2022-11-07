@@ -1,15 +1,25 @@
+import shutil
+import tempfile
+
 from django.contrib.auth import get_user_model
-from django.test import Client, TestCase
+from django.test import Client, TestCase, override_settings
 from django.urls import reverse
-from posts.models import Group, Post
+from django.conf import settings
+from posts.models import Group, Post, Comment
+from django.core.files.uploadedfile import SimpleUploadedFile
 
 User = get_user_model()
 
 
+TEMP_MEDIA_ROOT = tempfile.mkdtemp(dir=settings.BASE_DIR)
+
+
+@override_settings(MEDIA_ROOT=TEMP_MEDIA_ROOT)
 class PostPagesTests(TestCase):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
+        shutil.rmtree(TEMP_MEDIA_ROOT, ignore_errors=True)
         cls.author = User.objects.create(username='author')
         cls.group = Group.objects.create(
             title='Группа',
@@ -29,8 +39,21 @@ class PostPagesTests(TestCase):
 
     def test_create_post(self):
         post_count = Post.objects.count()
+        small_gif = (
+            b'\x47\x49\x46\x38\x39\x61\x01\x00'
+            b'\x01\x00\x00\x00\x00\x21\xf9\x04'
+            b'\x01\x0a\x00\x01\x00\x2c\x00\x00'
+            b'\x00\x00\x01\x00\x01\x00\x00\x02'
+            b'\x02\x4c\x01\x00\x3b'
+        )
+        uploaded = SimpleUploadedFile(
+            name='small.gif',
+            content=small_gif,
+            content_type='image/gif'
+        )
         form_data = {
             'text': 'Text',
+            'image': uploaded,
         }
         self.client.post(
             reverse('posts:post_create'), data=form_data, follow=True
@@ -39,6 +62,8 @@ class PostPagesTests(TestCase):
         new_post = Post.objects.get(pk=self.post.pk + 1)
         self.assertEqual(new_post.text, 'Text')
         self.assertEqual(new_post.author, self.author)
+        self.assertEqual(new_post.group, None)
+        self.assertEqual(new_post.image, 'posts/small.gif')
 
     def test_edit_post(self):
         post_count = Post.objects.count()
@@ -81,3 +106,36 @@ class PostPagesTests(TestCase):
         )
         self.assertEqual(post_count, Post.objects.count())
         self.assertEqual(Post.objects.get(pk=1).text, 'Пост')
+
+    def test_user_comment(self):
+        comm_count = Comment.objects.count()
+        post_id = self.post.pk
+        form_data = {
+            'text': 'Обычный комментарий',
+        }
+        self.client.post(
+            reverse(
+                'posts:add_comment',
+                kwargs={'post_id': post_id}
+            ),
+            data=form_data,
+            follow=True,
+        )
+        self.assertEqual(Comment.objects.count(), comm_count + 1)
+        self.assertEqual(Comment.objects.get(pk=1).text, "Обычный комментарий")
+
+    def test_guest_comment(self):
+        comm_count = Comment.objects.count()
+        post_id = self.post.pk
+        form_data = {
+            'text': 'Обычный комментарий',
+        }
+        self.guest.post(
+            reverse(
+                'posts:add_comment',
+                kwargs={'post_id': post_id}
+            ),
+            data=form_data,
+            follow=True,
+        )
+        self.assertEqual(Comment.objects.count(), comm_count)

@@ -32,10 +32,9 @@ ALLOWED_HOSTS = [
     'testserver',
 ]
 
-STATICFILES_DIRS = (os.path.join(BASE_DIR, 'static'),)
-
 # Application definition
 
+CSRF_FAILURE_VIEW = 'core.views.csrf_failure'
 
 LOGIN_URL = 'users:login'
 LOGIN_REDIRECT_URL = 'posts:index'
@@ -50,6 +49,9 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+
+    'sorl.thumbnail',
+
     'posts.apps.PostsConfig',
     'users.apps.UsersConfig',
     'core.apps.CoreConfig',
@@ -65,10 +67,19 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
+MEDIA_URL = '/media/'
+MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+
+STATICFILES_DIRS = (os.path.join(BASE_DIR, 'static'),)
 
 POSTS_PER_PAGE = 10
 
 ROOT_URLCONF = 'yatube.urls'
+CACHES = {
+    'default': {
+        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+    }
+}
 
 
 TEMPLATES_DIR = os.path.join(BASE_DIR, 'templates')

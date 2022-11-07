@@ -2,7 +2,9 @@ from django import forms
 from django.contrib.auth import get_user_model
 from django.test import Client, TestCase
 from django.urls import reverse
-from posts.models import Group, Post
+from django.core.cache import cache
+from posts.models import Group, Post, Comment
+from django.core.files.uploadedfile import SimpleUploadedFile
 
 User = get_user_model()
 
@@ -54,6 +56,15 @@ class PostTemplateTests(TestCase):
                 response = self.auth_client.get(reverse_name)
                 self.assertTemplateUsed(response, template)
 
+    def test_404_403_custom_pages(self):
+        response = self.auth_client.get('un-existing/page/')
+        self.assertTemplateUsed(response, 'core/404.html')
+        response = self.auth_client.get(
+            'un-existing/page/',
+            context={"csrftoken": False}
+        )
+        self.assertTemplateUsed(response, 'core/404.html')
+
 
 class PostContextTests(TestCase):
     @classmethod
@@ -66,14 +77,32 @@ class PostContextTests(TestCase):
             slug='slug',
             description='Описание группы',
         )
-        Post.objects.create(
+        small_gif = (
+            b'\x47\x49\x46\x38\x39\x61\x01\x00'
+            b'\x01\x00\x00\x00\x00\x21\xf9\x04'
+            b'\x01\x0a\x00\x01\x00\x2c\x00\x00'
+            b'\x00\x00\x01\x00\x01\x00\x00\x02'
+            b'\x02\x4c\x01\x00\x3b'
+        )
+        uploaded = SimpleUploadedFile(
+            name='small.gif',
+            content=small_gif,
+            content_type='image/gif'
+        )
+        cls.post = Post.objects.create(
             text='Пост',
             author=cls.author,
             group=cls.group,
+            image=uploaded,
         )
         Post.objects.create(
             text='Пост без группы',
             author=cls.author2,
+        )
+        Comment.objects.create(
+            text='Комментарий',
+            author=cls.author,
+            post=cls.post
         )
 
     def setUp(self):
@@ -90,9 +119,11 @@ class PostContextTests(TestCase):
         post_author_0 = first_obj.author
         post_group_0 = first_obj.group
         post_text_0 = first_obj.text
+        post_image_0 = first_obj.image
         self.assertEqual(post_author_0, self.author)
         self.assertEqual(post_group_0.title, 'Группа')
         self.assertEqual(post_text_0, 'Пост')
+        self.assertEqual(post_image_0, 'posts/small.gif')
 
     def test_correct_context_group_list(self):
         response = self.auth_client.get(
@@ -106,8 +137,10 @@ class PostContextTests(TestCase):
         first_obj = objects[0]
         post_author_0 = first_obj.author
         post_text_0 = first_obj.text
+        post_image_0 = first_obj.image
         self.assertEqual(post_author_0, self.author)
         self.assertEqual(post_text_0, 'Пост')
+        self.assertEqual(post_image_0, 'posts/small.gif')
 
     def test_correct_context_profile(self):
         response = self.auth_client.get(
@@ -120,8 +153,10 @@ class PostContextTests(TestCase):
         first_obj = objects[0]
         post_author_0 = first_obj.author
         post_text_0 = first_obj.text
+        post_image_0 = first_obj.image
         self.assertEqual(post_author_0, self.author)
         self.assertEqual(post_text_0, 'Пост')
+        self.assertEqual(post_image_0, 'posts/small.gif')
 
     def test_correct_context_post_detail(self):
         response = self.auth_client.get(
@@ -131,14 +166,23 @@ class PostContextTests(TestCase):
         first_obj = response.context['post']
         post_author_0 = first_obj.author
         post_text_0 = first_obj.text
+        post_image_0 = first_obj.image
         self.assertEqual(post_author_0, self.author)
         self.assertEqual(post_text_0, 'Пост')
+        self.assertEqual(post_image_0, 'posts/small.gif')
+
+        context = response.context['comments'][0]
+        comm_text = context.text
+        comm_author = context.author
+        self.assertEqual(comm_text, 'Комментарий')
+        self.assertEqual(comm_author, self.author)
 
     def test_correct_context_post_create(self):
         response = self.auth_client.get(reverse('posts:post_create'))
         form_fields = {
             'text': forms.fields.CharField,
             'group': forms.models.ModelChoiceField,
+            'image': forms.fields.ImageField,
         }
         for value, expected in form_fields.items():
             with self.subTest(value=value):
@@ -159,6 +203,21 @@ class PostContextTests(TestCase):
                 self.assertIsInstance(form_field, expected)
         is_edit = response.context['is_edit']
         self.assertEqual(is_edit, True)
+
+    def test_cache_index(self):
+        response = self.auth_client.get(reverse('posts:index'))
+        posts = response.content
+        Post.objects.create(
+            text='Новый пост',
+            author=self.post.author,
+        )
+        response_old = self.auth_client.get(reverse('posts:index'))
+        posts_old = response_old.content
+        self.assertEqual(posts_old, posts)
+        cache.clear()
+        response_new = self.auth_client.get(reverse('posts:index'))
+        posts_new = response_new.content
+        self.assertNotEqual(posts_old, posts_new)
 
 
 class PostPaginatorTests(TestCase):

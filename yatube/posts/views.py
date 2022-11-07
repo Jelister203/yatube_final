@@ -2,9 +2,10 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
 from django.shortcuts import get_object_or_404, redirect, render
+# from django.views.decorators.cache import cache_page
 
-from .forms import PostForm
-from .models import Group, Post
+from .forms import PostForm, CommentForm
+from .models import Group, Post, Comment
 
 User = get_user_model()
 
@@ -15,6 +16,7 @@ def my_paginator(request, post_list):
     return paginator.get_page(page_number)
 
 
+# @cache_page(20)
 def index(request):
     post_list = Post.objects.select_related('group', 'author')
     context = {'page_obj': my_paginator(request, post_list)}
@@ -37,15 +39,24 @@ def profile(request, username):
 
 def post_detail(request, post_id):
     post = get_object_or_404(Post, pk=post_id)
+    form = CommentForm(
+        request.POST or None
+    )
+    comments = Comment.objects.filter(post=post_id)
     context = {
         'post': post,
+        'form': form,
+        'comments': comments,
     }
     return render(request, 'posts/post_detail.html', context)
 
 
 @login_required
 def post_create(request):
-    form = PostForm(request.POST or None)
+    form = PostForm(
+        request.POST or None, 
+        files=request.FILES or None,
+    )
     if form.is_valid():
         post = form.save(commit=False)
         post.author = request.user
@@ -60,9 +71,25 @@ def post_edit(request, post_id):
     post = get_object_or_404(Post, id=post_id)
     if post.author != request.user:
         return redirect('posts:post_detail', post.pk)
-    form = PostForm(request.POST or None, instance=post)
+    form = PostForm(
+        request.POST or None,
+        files=request.FILES or None,
+        instance=post
+    )
     if form.is_valid():
         form.save()
         return redirect('posts:post_detail', post_id=post_id)
     context = {'form': form, 'is_edit': True}
     return render(request, 'posts/create_post.html', context)
+
+
+@login_required
+def add_comment(request, post_id):
+    # Получите пост 
+    form = CommentForm(request.POST or None)
+    if form.is_valid():
+        comment = form.save(commit=False)
+        comment.author = request.user
+        comment.post = Post.objects.get(pk=post_id)
+        comment.save()
+    return redirect('posts:post_detail', post_id=post_id)
