@@ -56,13 +56,8 @@ class PostTemplateTests(TestCase):
                 response = self.auth_client.get(reverse_name)
                 self.assertTemplateUsed(response, template)
 
-    def test_404_403_custom_pages(self):
+    def test_404_custom_page(self):
         response = self.auth_client.get('un-existing/page/')
-        self.assertTemplateUsed(response, 'core/404.html')
-        response = self.auth_client.get(
-            'un-existing/page/',
-            context={"csrftoken": False}
-        )
         self.assertTemplateUsed(response, 'core/404.html')
 
 
@@ -209,7 +204,7 @@ class PostContextTests(TestCase):
         posts = response.content
         Post.objects.create(
             text='Новый пост',
-            author=self.post.author,
+            author=self.author2,
         )
         response_old = self.auth_client.get(reverse('posts:index'))
         posts_old = response_old.content
