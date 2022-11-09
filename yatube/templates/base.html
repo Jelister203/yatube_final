@@ -1,3 +1,4 @@
+
 <!DOCTYPE html> <!-- Используется html 5 версии -->
 <html lang="ru"> <!-- Язык сайта - русский -->
   <head>
@@ -19,10 +20,13 @@
     {% endblock %}</title>
   </head>
   <body>
+    <header>
     {% include 'includes/header.html' %}
+    {% block header %}
+    {% endblock %}
+  </header>
     <main>
       <div class ="container py-5">
-        {% block header %}{% endblock %}
         {% block content %}
           Вставьте текст...
         {% endblock %}

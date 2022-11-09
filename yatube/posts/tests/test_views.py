@@ -3,7 +3,7 @@ from django.contrib.auth import get_user_model
 from django.test import Client, TestCase
 from django.urls import reverse
 from django.core.cache import cache
-from posts.models import Group, Post, Comment
+from posts.models import Group, Post, Comment, Follow
 from django.core.files.uploadedfile import SimpleUploadedFile
 
 User = get_user_model()
@@ -90,7 +90,7 @@ class PostContextTests(TestCase):
             group=cls.group,
             image=uploaded,
         )
-        Post.objects.create(
+        cls.post2 = Post.objects.create(
             text='Пост без группы',
             author=cls.author2,
         )
@@ -103,6 +103,64 @@ class PostContextTests(TestCase):
     def setUp(self):
         self.auth_client = Client()
         self.auth_client.force_login(self.author)
+        self.auth_client2 = Client()
+        self.auth_client2.force_login(self.author2)
+
+    def test_correct_context_follow(self):
+        subs0 = Follow.objects.filter(user=self.author)
+        self.auth_client.post(
+            reverse(
+                'posts:profile_follow',
+                kwargs={'username': self.author2.username}
+            )
+        )
+        subs1 = Follow.objects.filter(user=self.author)
+        self.auth_client.post(
+            reverse(
+                'posts:profile_unfollow',
+                kwargs={'username': self.author2.username}
+            )
+        )
+        subs2 = Follow.objects.filter(user=self.author)
+
+        self.assertNotEqual(subs0, subs1)
+        self.assertEqual(subs0, subs2)
+
+    def test_correct_context_unique_follow(self):
+        self.auth_client.post(
+            reverse(  # юзер1 подписывается на юезра2
+                'posts:profile_follow',
+                kwargs={'username': self.author2.username}
+            )
+        )
+        self.auth_client2.post(
+            reverse(  # юзер2 подписывается на юезра1
+                'posts:profile_follow',
+                kwargs={'username': self.author.username}
+            )
+        )
+        form_data = {'text': 'Text'}
+        self.auth_client2.post(  # юзер2 пишет пост
+            reverse('posts:post_create'), data=form_data, follow=True
+        )
+        response1 = self.auth_client.get('posts:index')
+        post2 = response1.context['page_obj'][0]  # сохраняем пост юзера2
+
+        form_data = {'text': 'Текст'}
+        self.auth_client.post(  # юзер1 пишет пост
+            reverse('posts:post_create'), data=form_data, follow=True
+        )
+        response1 = self.auth_client.get('posts:index')
+        post1 = response1.context['page_obj'][0]  # сохраняем пост юзера1
+
+        response1 = self.auth_client.get(reverse('posts:follow_index'))
+        post_follow_2 = response1.context['page_obj'][0]
+        #  юзер1 смотрит последний пост юзера2
+        response2 = self.auth_client2.get(reverse('posts:follow_index'))
+        post_follow_1 = response2.context['page_obj'][0]
+        #  юзер1 смотрит последний пост юзера2
+        self.assertEqual(post2, post_follow_2)
+        self.assertEqual(post1, post_follow_1)
 
     def test_correct_context_index(self):
         response = self.auth_client.get(reverse('posts:index'))
@@ -139,7 +197,7 @@ class PostContextTests(TestCase):
 
     def test_correct_context_profile(self):
         response = self.auth_client.get(
-            reverse('posts:profile', kwargs={'username': 'author'})
+            reverse('posts:profile', kwargs={'username': self.author.username})
         )
         objects = response.context['page_obj']
 
@@ -155,7 +213,7 @@ class PostContextTests(TestCase):
 
     def test_correct_context_post_detail(self):
         response = self.auth_client.get(
-            reverse('posts:post_detail', kwargs={'post_id': 1})
+            reverse('posts:post_detail', kwargs={'post_id': self.post.id})
         )
 
         first_obj = response.context['post']
