@@ -78,7 +78,7 @@ class StaticURLTests(TestCase):
             '/': 'posts/index.html',
             '/group/slug/': 'posts/group_list.html',
             '/profile/Unknown/': 'posts/profile.html',
-            '/posts/1/': 'posts/post_detail.html',
+            f'/posts/{self.post.pk}/': 'posts/post_detail.html',
         }
         for address, template in urls_templates_names_guests.items():
             with self.subTest(address=address):

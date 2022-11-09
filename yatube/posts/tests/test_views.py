@@ -107,7 +107,6 @@ class PostContextTests(TestCase):
         self.auth_client2.force_login(self.author2)
 
     def test_correct_context_follow(self):
-        subs0 = Follow.objects.filter(user=self.author)
         self.auth_client.post(
             reverse(
                 'posts:profile_follow',
@@ -123,8 +122,7 @@ class PostContextTests(TestCase):
         )
         subs2 = Follow.objects.filter(user=self.author)
 
-        self.assertNotEqual(subs0, subs1)
-        self.assertEqual(subs0, subs2)
+        self.assertNotEqual(subs1, subs2)
 
     def test_correct_context_unique_follow(self):
         self.auth_client.post(
