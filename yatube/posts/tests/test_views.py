@@ -143,14 +143,14 @@ class PostContextTests(TestCase):
         self.auth_client2.post(  # юзер2 пишет пост
             reverse('posts:post_create'), data=form_data, follow=True
         )
-        response1 = self.auth_client.get('posts:index')
+        response1 = self.auth_client.get(reverse('posts:index'))
         post2 = response1.context['page_obj'][0]  # сохраняем пост юзера2
 
         form_data = {'text': 'Текст'}
         self.auth_client.post(  # юзер1 пишет пост
             reverse('posts:post_create'), data=form_data, follow=True
         )
-        response1 = self.auth_client.get('posts:index')
+        response1 = self.auth_client.get(reverse('posts:index'))
         post1 = response1.context['page_obj'][0]  # сохраняем пост юзера1
 
         response1 = self.auth_client.get(reverse('posts:follow_index'))
