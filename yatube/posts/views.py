@@ -117,6 +117,8 @@ def profile_follow(request, username):
     author = get_object_or_404(User, username=username)
     if request.user.username == username:
         return profile(request, username)
+    elif len(Follow.objects.filter(user=request.user, author=author)):
+        return profile(request, username)
     follow = Follow()
     follow.user = request.user
     follow.author = author
