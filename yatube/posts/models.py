@@ -98,6 +98,6 @@ class Follow(models.Model):
         related_name='following',
         on_delete=models.CASCADE
     )
-    
+
     def __str__(self):
         return f"Фоловер: {self.user}; Автор: {self.author}."
