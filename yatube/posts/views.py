@@ -1,17 +1,20 @@
+
+from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
-from django.shortcuts import get_object_or_404, redirect, render
 # from django.views.decorators.cache import cache_page
+from django.db.models import Exists
+from django.shortcuts import get_object_or_404, redirect, render
 
-from .forms import PostForm, CommentForm
-from .models import Group, Post, Comment, Follow
+from .forms import CommentForm, PostForm
+from .models import Comment, Follow, Group, Post
 
 User = get_user_model()
 
 
 def my_paginator(request, post_list):
-    paginator = Paginator(post_list, 10)
+    paginator = Paginator(post_list, settings.POSTS_PER_PAGE)
     page_number = request.GET.get('page')
     return paginator.get_page(page_number)
 
@@ -33,12 +36,9 @@ def group_posts(request, slug):
 def profile(request, username):
     user = get_object_or_404(User, username=username)
     post_list = user.posts.select_related('group', 'author')
-    following = []
     follow = False
     if request.user.is_authenticated:
-        following = Follow.objects.filter(user=request.user, author=user)
-    if len(following) > 0:
-        follow = True
+        follow = Follow.objects.filter(user=request.user, author=user).exists()
     context = {
         'author': user,
         'page_obj': my_paginator(request, post_list),
@@ -49,9 +49,7 @@ def profile(request, username):
 
 def post_detail(request, post_id):
     post = get_object_or_404(Post, pk=post_id)
-    form = CommentForm(
-        request.POST or None
-    )
+    form = CommentForm()
     comments = Comment.objects.filter(post=post_id)
     context = {
         'post': post,
@@ -115,9 +113,8 @@ def follow_index(request):
 @login_required
 def profile_follow(request, username):
     author = get_object_or_404(User, username=username)
-    if request.user.username == username:
-        return profile(request, username)
-    elif len(Follow.objects.filter(user=request.user, author=author)):
+    if request.user.username == username or Follow.objects.filter(
+            user=request.user, author=author).exists():
         return profile(request, username)
     follow = Follow()
     follow.user = request.user
@@ -135,8 +132,7 @@ def profile_follow(request, username):
 @login_required
 def profile_unfollow(request, username):
     author = get_object_or_404(User, username=username)
-    follow = Follow.objects.filter(user=request.user, author=author)
-    follow.delete()
+    Follow.objects.filter(user=request.user, author=author).delete()
     post_list = author.posts.select_related('group', 'author')
     context = {
         'author': author,

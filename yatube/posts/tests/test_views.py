@@ -1,18 +1,24 @@
+import shutil
+import tempfile
+
 from django import forms
+from django.conf import settings
 from django.contrib.auth import get_user_model
-from django.test import Client, TestCase
-from django.urls import reverse
 from django.core.cache import cache
-from posts.models import Group, Post, Comment, Follow
 from django.core.files.uploadedfile import SimpleUploadedFile
+from django.test import Client, TestCase, override_settings
+from django.urls import reverse
+from posts.models import Comment, Follow, Group, Post
 
 User = get_user_model()
+TEMP_MEDIA_ROOT = tempfile.mkdtemp(dir=settings.BASE_DIR)
 
 
 class PostTemplateTests(TestCase):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
+        shutil.rmtree(TEMP_MEDIA_ROOT, ignore_errors=True)
         cls.author = User.objects.create(username='author')
         cls.author2 = User.objects.create(username='author2')
         cls.group = Group.objects.create(
@@ -61,6 +67,7 @@ class PostTemplateTests(TestCase):
         self.assertTemplateUsed(response, 'core/404.html')
 
 
+@override_settings(MEDIA_ROOT=TEMP_MEDIA_ROOT)
 class PostContextTests(TestCase):
     @classmethod
     def setUpClass(cls):
@@ -99,6 +106,12 @@ class PostContextTests(TestCase):
             author=cls.author,
             post=cls.post
         )
+
+    @classmethod
+    def tearDownClass(cls):
+        super(PostContextTests, cls).tearDownClass()
+        cache.clear()
+        shutil.rmtree(TEMP_MEDIA_ROOT, ignore_errors=True)
 
     def setUp(self):
         self.auth_client = Client()
@@ -292,6 +305,10 @@ class PostPaginatorTests(TestCase):
             author=cls.author2,
         )
 
+    @classmethod
+    def tearDownClass(cls):
+        super().tearDownClass()
+
     def setUp(self):
         self.auth_client = Client()
         self.auth_client.force_login(self.author)
@@ -314,3 +331,16 @@ class PostPaginatorTests(TestCase):
         response = self.auth_client.get(reverse('posts:index'))
         objects = response.context['page_obj']
         self.assertEqual(len(objects), 2)
+
+    def test_many_pages(self):
+        for i in range(12):
+            Post.objects.create(
+                text=f'Пост {i+2}',
+                author=self.author,
+            )
+        response = self.auth_client.get(reverse('posts:index'))
+        objects = response.context['page_obj']
+        self.assertEqual(len(objects), 10)
+        response = self.auth_client.get('http://127.0.0.1:8000/?page=2')
+        objects = response.context['page_obj']
+        self.assertEqual(len(objects), 4)

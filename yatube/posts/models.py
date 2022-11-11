@@ -37,7 +37,8 @@ class Post(models.Model):
     image = models.ImageField(
         'Картинка',
         upload_to='posts/',
-        blank=True
+        blank=True,
+        null=True,
     )
     group = models.ForeignKey(
         Group,
@@ -86,6 +87,8 @@ class Comment(models.Model):
 class Follow(models.Model):
     class Meta:
         verbose_name = 'Подписки'
+        unique_together = ('user', 'author',)
+
     user = models.ForeignKey(
         User,
         verbose_name='Подписчик',

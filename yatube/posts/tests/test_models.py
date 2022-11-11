@@ -25,10 +25,6 @@ class PostModelTest(TestCase):
         self.assertEqual(str(self.group), self.group.title)
         self.assertEqual(str(self.post), self.post.text[:15])
 
-    def __str__test(self):
-        post = self.post
-        self.assertEqual(post, 'T' * 15)
-
     def test_verbose_name(self):
         post = self.post
         fields = {
