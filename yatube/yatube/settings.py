@@ -78,6 +78,7 @@ ROOT_URLCONF = 'yatube.urls'
 CACHES = {
     'default': {
         'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+        
     }
 }
 

@@ -1,9 +1,8 @@
-
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
-# from django.views.decorators.cache import cache_page
+from django.views.decorators.cache import cache_page
 from django.shortcuts import get_object_or_404, redirect, render
 
 from .forms import CommentForm, PostForm
@@ -18,7 +17,7 @@ def my_paginator(request, post_list):
     return paginator.get_page(page_number)
 
 
-# @cache_page(20)
+@cache_page(20, key_prefix="index_page")
 def index(request):
     post_list = Post.objects.select_related('group', 'author')
     context = {'page_obj': my_paginator(request, post_list)}
@@ -112,7 +111,7 @@ def follow_index(request):
 @login_required
 def profile_follow(request, username):
     author = get_object_or_404(User, username=username)
-    if request.user.username == username or Follow.objects.filter(
+    if request.user == author or Follow.objects.filter(
             user=request.user, author=author).exists():
         return profile(request, username)
     follow = Follow()
