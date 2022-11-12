@@ -17,7 +17,7 @@ def my_paginator(request, post_list):
     return paginator.get_page(page_number)
 
 
-@cache_page(20, key_prefix="index_page")
+@cache_page(20)
 def index(request):
     post_list = Post.objects.select_related('group', 'author')
     context = {'page_obj': my_paginator(request, post_list)}

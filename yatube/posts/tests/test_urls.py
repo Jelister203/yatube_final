@@ -3,6 +3,7 @@ from http import HTTPStatus
 from django.contrib.auth import get_user_model
 from django.test import Client, TestCase
 from posts.models import Group, Post
+from django.core.cache import cache
 
 User = get_user_model()
 
@@ -25,6 +26,7 @@ class StaticURLTests(TestCase):
             author=user2,
         )
         Group.objects.create(title='Группа', slug='slug', description='Группа')
+        cache.clear()
 
     def test_unexisting_page(self):
         # Выбрасывает 404 при запросе на несуществующую страницу

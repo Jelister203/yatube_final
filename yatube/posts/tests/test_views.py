@@ -39,10 +39,11 @@ class PostTemplateTests(TestCase):
     def setUp(self):
         self.auth_client = Client()
         self.auth_client.force_login(self.author)
+        cache.clear()
 
     def test_correct_template(self):
         templates_pages_names = {
-            reverse('posts:index'): 'posts/index.html',
+            '': 'posts/index.html',
             (
                 reverse('posts:group_list', kwargs={'slug': 'slug'})
             ): 'posts/group_list.html',
@@ -118,6 +119,7 @@ class PostContextTests(TestCase):
         self.auth_client.force_login(self.author)
         self.auth_client2 = Client()
         self.auth_client2.force_login(self.author2)
+        cache.clear()
 
     def test_correct_context_follow(self):
         self.auth_client.post(
@@ -161,6 +163,13 @@ class PostContextTests(TestCase):
         self.auth_client.post(  # юзер1 пишет пост
             reverse('posts:post_create'), data=form_data, follow=True
         )
+
+        cache.clear()
+        """ 
+        пользователь создаёт пост, и тут же ищет его в posts:index,
+        а его там нет!
+        """
+
         response1 = self.auth_client.get(reverse('posts:index'))
         post1 = response1.context['page_obj'][0]  # сохраняем пост юзера1
 
@@ -312,6 +321,7 @@ class PostPaginatorTests(TestCase):
     def setUp(self):
         self.auth_client = Client()
         self.auth_client.force_login(self.author)
+        cache.clear()
 
     def test_correct_context_profile(self):
         response = self.auth_client.get(
