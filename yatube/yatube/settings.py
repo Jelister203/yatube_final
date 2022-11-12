@@ -77,8 +77,7 @@ POSTS_PER_PAGE = 10
 ROOT_URLCONF = 'yatube.urls'
 CACHES = {
     'default': {
-        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
-        
+        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',    
     }
 }
 

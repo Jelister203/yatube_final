@@ -165,7 +165,7 @@ class PostContextTests(TestCase):
         )
 
         cache.clear()
-        """ 
+        """
         пользователь создаёт пост, и тут же ищет его в posts:index,
         а его там нет!
         """
